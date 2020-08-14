@@ -3,14 +3,29 @@
 
 # Github sandbox repo creation script
 username = ARGV[0]
-password = ARGV[1]
+github_token = ARGV[1]
+
+unless username && github_token
+  puts 'Argument Error: GitHub username and GitHub access token required'
+  puts ''
+  puts 'USAGE'
+  puts '  ruby generate-sandbox-repo.rb <github_username> <github_access_token>'
+  puts ''
+  puts 'DESCRIPTION'
+  puts '  Creates repo in GitHub at username/branch-renaming-test'
+  puts ''
+  puts '    <github_username> - identifies your personal repository location in GitHub'
+  puts '    <github_access_token> - the access token that allows the test repo to be created under your Repositories'
+  puts ''
+  return
+end
 
 require 'octokit'
 
 org_name = username
 repo_name = "branch-renaming-test"
 
-client = Octokit::Client.new(:login => username, :password => password)
+client = Octokit::Client.new({ access_token: github_token });
 
 # Create the repo
 client.create_repository(repo_name, private: false, has_issues: true, has_wiki: true, auto_init: true)
