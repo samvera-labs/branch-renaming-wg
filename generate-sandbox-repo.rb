@@ -27,20 +27,42 @@ repo_name = "branch-renaming-test"
 
 client = Octokit::Client.new({ access_token: github_token });
 
+# Delete the repo if it currently exists
+client.delete_repository("#{org_name}/#{repo_name}") rescue nil
+
 # Create the repo
 client.create_repository(repo_name, private: false, has_issues: true, has_wiki: true, auto_init: true)
+
+# Create a file in master
+hello_world = <<-HELLO_WORLD.chomp
+puts "Hello World!"
+HELLO_WORLD
+client.create_contents("#{org_name}/#{repo_name}", "hello_world.rb", "Add hello_world.rb", hello_world)
+
+# Create branch protections
+client.protect_branch("#{org_name}/#{repo_name}", "master", required_status_checks: { strict: true, contexts: [] }, enforce_admins: true, required_pull_request_reviews: nil, restrictions: nil )
 
 # Create file which references master
 client.create_contents("#{org_name}/#{repo_name}", "CONTRIBUTING.md", "Add CONTRIBUTING.md", file: 'CONTRIBUTING.md')
 
 # Create a branch and PR
+pull_request_text = <<-PULL_REQUEST.chomp
+A PR to master to add CONTRIBUTING.md
+Consider applying i18n to https://github.com/#{org_name}/#{repo_name}/blob/master/hello_world.rb?
+PULL_REQUEST
 master_sha = client.refs("#{org_name}/#{repo_name}", "heads/master")[:object][:sha]
 client.create_ref("#{org_name}/#{repo_name}", "heads/add-new-file", master_sha)
 client.create_contents("#{org_name}/#{repo_name}", "new-file", "Add new-file", "Proposed New File", branch: 'add-new-file')
-client.create_pull_request("#{org_name}/#{repo_name}", "master", "add-new-file", "Add new file to repo", "A PR to master")
+client.create_pull_request("#{org_name}/#{repo_name}", "master", "add-new-file", "Add new file to repo", pull_request_text)
 
 # Create an issue which references a commit in master
-client.create_issue("#{org_name}/#{repo_name}", "An issue that references a commit in master", "This issue is solved in #{master_sha}")
+issue_text = <<-ISSUE.chomp
+This issue is solved in #{master_sha}.
+The github link: https://github.com/#{org_name}/#{repo_name}/blob/master/hello_world.rb
+And also the section that starts at line 1: https://github.com/#{org_name}/#{repo_name}/blob/master/hello_world.rb#L1
+Also look at the raw hello_world.rb: https://raw.githubusercontent.com/#{org_name}/#{repo_name}/master/hello_world.rb
+ISSUE
+client.create_issue("#{org_name}/#{repo_name}", "An issue that references a commit in master", issue_text)
 
 # Create issue that is converted into a PR
 issue = client.create_issue("#{org_name}/#{repo_name}", "An issue that will be converted into a PR", "This issue will be converted into a PR")
@@ -54,7 +76,11 @@ client.create_ref("#{org_name}/#{repo_name}", "heads/issue-solution2", master_sh
 client.create_contents("#{org_name}/#{repo_name}", "issue-solution2", "Solution to issue", "Issue solution", branch: 'issue-solution2')
 client.create_pull_request("#{org_name}/#{repo_name}", "master", "issue-solution2", "Fix issue ##{issue[:number]}", "Fixes ##{issue[:number]}")
 
+# TODO: Create a fork and a PR to master from the fork
 
-# When all done delete the repo:
-# client.delete_repository("#{org_name}/#{repo_name}")
+# TODO: Update the repo's wiki
 
+# TODO: Setup local git repo?
+
+# All done
+puts client.say('All done setting up the sandbox repo')
